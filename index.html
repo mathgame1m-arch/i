@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Battle</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap');
+
+        :root {
+            --vibrant-bg: linear-gradient(135deg, #55acff 0%, #2b58ffe6 100%);
+            --glass-bg: rgba(255, 255, 255, 0.15);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --error-red: #ff4757;
+            --success-green: #2ecc71; /* Жұмсақ жасыл */
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            background: var(--vibrant-bg);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            user-select: none; /* Текстті белгілеуді өшіру */
+        }
+
+        /* Анимациялар */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+        .error { 
+            animation: shake 0.3s ease; 
+            background: rgba(255, 71, 87, 0.3) !important;
+            border-color: var(--error-red) !important;
+        }
+
+        /* Дұрыс жауап стилі (Анимациясыз) */
+        .correct-static {
+            background: rgba(46, 204, 113, 0.4) !important; /* Жұмсақ жасыл */
+            border-color: var(--success-green) !important;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            text-align: center;
+            display: none;
+        }
+        .active { display: block; }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            padding: 30px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+        }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100&;
+            height: 50px;
+        }
+
+        .btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid var(--glass-border);
+            padding: 15px;
+            border-radius: 15px;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
+        .btn.selected { background: white; color: #2b58ff; box-shadow: 0 0 15px white; }
+
+        /* Ойын экраны */
+        .battle-layout {
+            display: none;
+            width: 100%;
+            height: 100vh;
+            flex-direction: row;
+        }
+
+        @media (max-width: 768px) {
+            .battle-layout { flex-direction: column; overflow-y: auto; }
+            .player-zone { border-bottom: 2px dashed rgba(255,255,255,0.2); min-height: 50vh; }
+            .zone-1 { border-right: none !important; }
+            .q-text { font-size: 40px !important; }
+        }
+
+        .player-zone {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .zone-1 { border-right: 2px dashed rgba(255,255,255,0.2); }
+
+        .info-bar { display: flex; justify-content: space-between; width: 80%; max-width: 300px; margin-bottom: 10px; font-weight: bold;}
+        .timer-badge { background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 10px; }
+
+        .q-text { font-size: 60px; font-weight: 900; margin: 10px 0; text-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        
+        .ans-area { 
+            font-size: 40px; 
+            border-bottom: 3px solid white; 
+            min-width: 120px; 
+            height: 60px; 
+            text-align: center; 
+            margin-bottom: 20px;
+            border-radius: 10px 10px 0 0;
+            transition: background 0s; /* Анимациясыз түс ауысу үшін */
+        }
+
+        .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 260px; }
+        .k-btn { padding: 15px; background: rgba(255,255,255,0.15); border: 1px solid var(--glass-border); color: white; border-radius: 12px; font-size: 20px; font-weight: 700; cursor: pointer; }
+        .k-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.3); }
+
+        /* Difficulty Section */
+        .diff-selector { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+        .diff-btn { padding: 8px 15px; border-radius: 20px; border: 1px solid white; background: transparent; color: white; cursor: pointer; font-size: 14px; }
+        .diff-btn.active { background: white; color: #2b58ff; font-weight: bold; }
+
+        #win-overlay {
+            position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.9);
+            display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 2000;
+        }
+        
+        .mix-btn { background: linear-gradient(45deg, #ff9a9e, #fad0c4); border: none; color: #333; }
+    </style>
+</head>
+<body>
+         <footer class="footer">&copy; Бейбарыс тарапынан жасалды</footer>
+    <audio id="snd-ding" src="ding.mp3"></audio>
+    <audio id="snd-buzz" src="buzz.mp3"></audio>
+
+    <div class="container active" id="menu-screen">
+        <div class="glass-panel">
+            <h1>MATH BATTLE</h1>
+            <div class="menu-grid">
+                <button class="btn" onclick="selectMode('solo')">👤 ЖЕКЕ ОЙЫН</button>
+                <button class="btn" onclick="selectMode('pvp')">⚔️ ДУЭЛЬ (1vs1)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="op-screen">
+        <div class="glass-panel">
+            <h4>ҚИЫНДЫҚ ДЕҢГЕЙІ</h4>
+            <div class="diff-selector">
+                <button class="diff-btn active" onclick="setDiff('easy', this)">ОҢАЙ</button>
+                <button class="diff-btn" onclick="setDiff('medium', this)">ОРТАША</button>
+                <button class="diff-btn" onclick="setDiff('hard', this)">ҚИЫН</button>
+            </div>
+            
+            <h2 id="mode-title">РЕЖИМ ТАҢДАУ</h2>
+            <div class="menu-grid">
+                <button class="btn" onclick="startBattle('sum')">➕ ҚОСУ</button>
+                <button class="btn" onclick="startBattle('sub')">➖ АЗАЙТУ</button>
+                <button class="btn" onclick="startBattle('mul')">✖ КӨБЕЙТУ</button>
+                <button class="btn" onclick="startBattle('div')">➗ БӨЛУ</button>
+                <button class="btn mix-btn" onclick="startBattle('mix')">🎲 МИКС</button>
+            </div>
+            <p style="cursor:pointer; margin-top:20px; opacity: 0.7;" onclick="location.reload()">← АРТҚА</p>
+        </div>
+    </div>
+
+    <div class="battle-layout" id="game-screen">
+        <div class="player-zone zone-1">
+            <div class="info-bar">
+                <span>P1 Ұпай: <span id="s1">0</span>/10</span>
+                <span class="timer-badge">⏱ <span id="t1">10</span></span>
+            </div>
+            <div class="q-text" id="q1">...</div>
+            <div class="ans-area" id="a1"></div>
+            <div class="keys">
+                <button class="k-btn" onclick="input(1,1)">1</button><button class="k-btn" onclick="input(1,2)">2</button><button class="k-btn" onclick="input(1,3)">3</button>
+                <button class="k-btn" onclick="input(1,4)">4</button><button class="k-btn" onclick="input(1,5)">5</button><button class="k-btn" onclick="input(1,6)">6</button>
+                <button class="k-btn" onclick="input(1,7)">7</button><button class="k-btn" onclick="input(1,8)">8</button><button class="k-btn" onclick="input(1,9)">9</button>
+                <button class="k-btn" onclick="cls(1)">C</button><button class="k-btn" onclick="input(1,0)">0</button><button class="k-btn" style="background:rgba(255,255,255,0.3)" onclick="check(1)">OK</button>
+            </div>
+        </div>
+
+        <div class="player-zone" id="p2-zone">
+            <div class="info-bar">
+                <span>P2 Ұпай: <span id="s2">0</span>/10</span>
+                <span class="timer-badge">⏱ <span id="t2">10</span></span>
+            </div>
+            <div class="q-text" id="q2">...</div>
+            <div class="ans-area" id="a2"></div>
+            <div class="keys">
+                <button class="k-btn" onclick="input(2,1)">1</button><button class="k-btn" onclick="input(2,2)">2</button><button class="k-btn" onclick="input(2,3)">3</button>
+                <button class="k-btn" onclick="input(2,4)">4</button><button class="k-btn" onclick="input(2,5)">5</button><button class="k-btn" onclick="input(2,6)">6</button>
+                <button class="k-btn" onclick="input(2,7)">7</button><button class="k-btn" onclick="input(2,8)">8</button><button class="k-btn" onclick="input(2,9)">9</button>
+                <button class="k-btn" onclick="cls(2)">C</button><button class="k-btn" onclick="input(2,0)">0</button><button class="k-btn" style="background:rgba(255,255,255,0.3)" onclick="check(2)">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="win-overlay">
+        <h1 id="win-txt">ЖЕҢІС!</h1>
+        <button class="btn" onclick="location.reload()">МЕНЮ ГЕ ОРАЛУ</button>
+    </div>
+
+    <script>
+        let gameMode = 'solo';
+        let opType = 'sum';
+        let difficulty = 'easy';
+        
+        // Ойыншы объектілеріне таймер қосамыз
+        let players = {
+            p1: { score: 0, ans: 0, input: "", timer: null, timeVal: 10 },
+            p2: { score: 0, ans: 0, input: "", timer: null, timeVal: 10 }
+        };
+
+        const sounds = {
+            ding: document.getElementById('snd-ding'),
+            buzz: document.getElementById('snd-buzz')
+        };
+
+        function playSound(type) {
+            // Дыбысты басынан бастап ойнату
+            sounds[type].currentTime = 0;
+            sounds[type].play().catch(e => console.log("Audio play failed", e));
+        }
+
+        function selectMode(m) {
+            gameMode = m;
+            document.getElementById('menu-screen').classList.remove('active');
+            document.getElementById('op-screen').classList.add('active');
+        }
+
+        function setDiff(diff, btn) {
+            difficulty = diff;
+            document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function startBattle(op) {
+            opType = op;
+            document.getElementById('op-screen').classList.remove('active');
+            document.getElementById('game-screen').style.display = 'flex';
+            if(gameMode === 'solo') {
+                document.getElementById('p2-zone').style.display = 'none';
+                document.querySelector('.zone-1').style.border = 'none';
+            }
+            gen(1);
+            if(gameMode === 'pvp') gen(2);
+        }
+
+        function getNumbers() {
+            let max, minMul, maxMul;
+            // Қиындық деңгейлері
+            if(difficulty === 'easy') { max = 10; minMul = 1; maxMul = 9; }
+            else if(difficulty === 'medium') { max = 50; minMul = 2; maxMul = 12; }
+            else { max = 100; minMul = 3; maxMul = 20; } // Hard
+
+            return { max, minMul, maxMul };
+        }
+
+        function gen(p) {
+            clearInterval(players[`p${p}`].timer); // Ескі таймерді өшіру
+            players[`p${p}`].timeVal = 10; // Таймерді жаңарту
+            document.getElementById(`t${p}`).innerText = 10;
+
+            // Таймерді іске қосу
+            startTimer(p);
+
+            let nums = getNumbers();
+            let a, b, correct, currentOp = opType;
+
+            // MIX режимі: әр сұрақ сайын кездейсоқ амал
+            if(opType === 'mix') {
+                const ops = ['sum', 'sub', 'mul', 'div'];
+                currentOp = ops[Math.floor(Math.random() * ops.length)];
+            }
+
+            if(currentOp === 'sum') {
+                a = Math.floor(Math.random() * nums.max) + 1;
+                b = Math.floor(Math.random() * nums.max) + 1;
+                correct = a + b;
+            } else if(currentOp === 'sub') {
+                a = Math.floor(Math.random() * nums.max) + 1;
+                b = Math.floor(Math.random() * nums.max) + 1;
+                if(a < b) [a, b] = [b, a];
+                correct = a - b;
+            } else if(currentOp === 'mul') {
+                a = Math.floor(Math.random() * nums.maxMul) + nums.minMul;
+                b = Math.floor(Math.random() * nums.maxMul) + nums.minMul;
+                correct = a * b;
+            } else { // div
+                b = Math.floor(Math.random() * (nums.maxMul - 1)) + 2;
+                a = b * (Math.floor(Math.random() * 10) + 1);
+                correct = a / b;
+            }
+
+            players[`p${p}`].ans = correct;
+            players[`p${p}`].input = "";
+            
+            const symbols = {sum:'+', sub:'-', mul:'×', div:'÷'};
+            document.getElementById(`q${p}`).innerText = `${a} ${symbols[currentOp]} ${b}`;
+            
+            // Жаңа сұрақ келгенде input тазарады, бірақ түсі өзгермейді (input басқанда өзгереді)
+             let ansEl = document.getElementById(`a${p}`);
+             ansEl.innerText = "";
+             // Егер алдыңғы сұрақта жасыл болып тұрса, оны gen ішінде өшірмейміз, 
+             // ол input басқанда өшеді. Бірақ логикалық тұрғыда жаңа сұрақ келді, 
+             // сондықтан тақта таза.
+        }
+
+        function startTimer(p) {
+            players[`p${p}`].timer = setInterval(() => {
+                players[`p${p}`].timeVal--;
+                document.getElementById(`t${p}`).innerText = players[`p${p}`].timeVal;
+                
+                if(players[`p${p}`].timeVal <= 0) {
+                    // Уақыт бітті!
+                    clearInterval(players[`p${p}`].timer);
+                    playSound('buzz');
+                    let ansEl = document.getElementById(`a${p}`);
+                    ansEl.classList.add('error'); // Қызару
+                    setTimeout(() => {
+                        ansEl.classList.remove('error');
+                        gen(p); // Жаңа сұрақ
+                    }, 500);
+                }
+            }, 1000);
+        }
+
+        function input(p, val) {
+            let ansEl = document.getElementById(`a${p}`);
+            
+            // ТАЛАП: Жаңа сан басқанда жасыл түс (correct-static) жоғалады
+            if(ansEl.classList.contains('correct-static')) {
+                ansEl.classList.remove('correct-static');
+                players[`p${p}`].input = ""; // Жаңа сұрақ үшін input тазарту
+            }
+
+            players[`p${p}`].input += val;
+            ansEl.innerText = players[`p${p}`].input;
+            ansEl.classList.remove('error');
+        }
+
+        function cls(p) {
+            players[`p${p}`].input = "";
+            let ansEl = document.getElementById(`a${p}`);
+            ansEl.innerText = "";
+            ansEl.classList.remove('error');
+            ansEl.classList.remove('correct-static');
+        }
+
+        function check(p) {
+            let ansDiv = document.getElementById(`a${p}`);
+            
+            if(parseInt(players[`p${p}`].input) === players[`p${p}`].ans) {
+                // ДҰРЫС ЖАУАП
+                playSound('ding');
+                players[`p${p}`].score++;
+                document.getElementById(`s${p}`).innerText = players[`p${p}`].score;
+                
+                // ТАЛАП: Input жұмсақ жасыл болады (анимациясыз)
+                ansDiv.classList.add('correct-static');
+                
+                // Келесі сұрақты генерациялаймыз, бірақ input-тағы жауапты өшірмейміз
+                // немесе өшіріп, жасыл фон қалдырамыз.
+                // Логика: Жасыл болады -> Сұрақ ауысады -> Input бос тұрады (бірақ жасыл фонмен)
+                
+                players[`p${p}`].input = ""; // Логикалық түрде тазарту
+                ansDiv.innerText = ""; // Визуалды тазарту
+                
+                if(players[`p${p}`].score >= 10) {
+                    clearInterval(players.p1.timer);
+                    clearInterval(players.p2.timer);
+                    document.getElementById('win-overlay').style.display = 'flex';
+                    document.getElementById('win-txt').innerText = `ОЙЫНШЫ ${p} ЖЕҢДІ! 🏆`;
+                } else { 
+                    gen(p); 
+                    // gen() функциясы жаңа сұрақты салады. 
+                    // correct-static классы әлі тұр, ол келесі input(p) кезінде өшеді.
+                }
+
+            } else {
+                // ҚАТЕ ЖАУАП
+                playSound('buzz');
+                ansDiv.classList.add('error');
+                setTimeout(() => {
+                    ansDiv.classList.remove('error');
+                    players[`p${p}`].input = "";
+                    ansDiv.innerText = "";
+                }, 400);
+            }
+        }
+    </script>
+</body>
+</html>
